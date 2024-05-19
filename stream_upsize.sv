@@ -72,18 +72,22 @@ always_comb
     end    
 
 always_comb begin
-  if ((counter_trn_reg == T_DATA_RATIO) && ~s_last_i && ~full_keep)
+  if ((counter_trn_reg == T_DATA_RATIO) && ~s_last_i && ~full_keep) begin
     push_keep = 1'b1;
-  else
-    push_keep = '0;
-
-  if ((counter_trn_reg == T_DATA_RATIO) || fifo_full) begin
     s_ready_o =   '0;
-    overflow = 1'b1;
+    overflow =  1'b1;
   end else begin
+    push_keep =   '0;
     s_ready_o = 1'b1;
     overflow  =   '0;
   end
+  // if ((counter_trn_reg == T_DATA_RATIO) || fifo_full) begin
+  //   s_ready_o =   '0;
+  //   overflow = 1'b1;
+  // end else begin
+  //   s_ready_o = 1'b1;
+  //   overflow  =   '0;
+  // end
 
   if ((pointer == T_DATA_RATIO))
     overflow_ptr = 1'b1;
