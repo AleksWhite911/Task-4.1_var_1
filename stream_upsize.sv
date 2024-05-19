@@ -18,7 +18,7 @@ module stream_upsize #(
 logic [T_DATA_RATIO-1:0] push_data_for_fifo, fifo_full, counter_trn_reg, counter_trn, pointer, pop_data_for_fifo, fifo_empty;
 logic [T_DATA_WIDTH-1:0] data_fifo [T_DATA_RATIO-1:0];
 logic [T_DATA_RATIO-1:0] m_keep_o_logic;
-logic trn_vld, push_keep, pop_keep, empty_keep, full_keep;
+logic trn_vld, push_keep, pop_keep, empty_keep, full_keep, overflow, overflow_ptr;
 
 //Implement FIFO modules for save data
 generate
@@ -53,102 +53,64 @@ endgenerate
     .full(full_keep)  
   );
 
+always_comb
+  if (s_valid_i && s_ready_o) begin
+    push_data_for_fifo = pointer;
+  end else begin
+    push_data_for_fifo = '0;
+  end
+
+always_comb
+    if (m_ready_i && ~empty_keep) begin
+      pop_keep = 1'b1;
+      m_valid_o = 1'b1;
+      pop_data_for_fifo = m_keep_o;
+    end else begin
+      pop_keep = '0;
+      m_valid_o = '0;
+      pop_data_for_fifo = '0;
+    end    
 
 always_comb begin
-  if (s_valid_i && s_ready_o)
-    push_data_for_fifo = (1'b1 << pointer);
-
   if ((counter_trn_reg == T_DATA_RATIO) && ~s_last_i && ~full_keep)
     push_keep = 1'b1;
   else
     push_keep = '0;
 
-  if (counter_trn_reg == T_DATA_RATIO)
+  if ((counter_trn_reg == T_DATA_RATIO) || fifo_full) begin
     s_ready_o =   '0;
-  else
+    overflow = 1'b1;
+  end else begin
     s_ready_o = 1'b1;
+    overflow  =   '0;
+  end
 
-    
+  if ((pointer == T_DATA_RATIO))
+    overflow_ptr = 1'b1;
+  else
+    overflow_ptr = '0;
 end
-
-  // enum logic[2:0]
-  //   {
-  //      IDLE_VLD_DATA = 3'b000,
-  //      TRANSFER_STATE = 3'b001
-  //   }
-  //   state, new_state;
-
-
-
-  // always_comb
-  //   begin
-  //     new_state = state;
-
-  //     case (state)
-  //       IDLE_VLD_DATA:
-  //       begin
-  //         if (pointer )
-  //        end
-//        TRANSFER_STATE:
-//        begin
-//          s_ready_o = '0;   
-//          //pop_data_for_fifo = m_keep_o;
-//          m_valid_o = 1'b1;
-//          new_state = IDLE_VLD_DATA;
-//        end
-// //       F0:   
-// //         if (  a) new_state = S1;
-// //         else     new_state = IDLE;
-// //       S1:   
-// //         if (~ a) new_state = S0;
-// //             else     new_state = F1;
-// //       S0:   if (  a) new_state = S1;
-// //             else     new_state = IDLE;
-//      endcase
-//    end
-
-//   // Output logic (depends only on the current state)
-//   // assign detected = (state == S0);
-
-    // State update
-    // always_ff @ (posedge clk)
-    //   if (~rst_n)
-    //     state <= IDLE_VLD_DATA;
-    //   else
-    //     state <= new_state;
-
 
  always_ff @ (posedge clk) begin
     if (~rst_n) begin
       counter_trn_reg   <= 0;
       m_keep_o_logic    <= 0;
-      pointer           <= 0;
+      pointer           <= 1;
     end else begin
 
-      if (s_valid_i && ~s_last_i) begin
-        if (counter_trn_reg < T_DATA_RATIO) begin
-          counter_trn_reg <= counter_trn_reg + 1'b1;
-          m_keep_o_logic <= m_keep_o_logic + push_data_for_fifo;
-        end else begin
-          counter_trn_reg <= 0;
-          m_keep_o_logic  <= 0;
-        end 
-      end
+      if (s_valid_i && ~s_last_i && ~overflow && s_ready_o) begin
+        counter_trn_reg <= counter_trn_reg + 1'b1;
+        m_keep_o_logic  <= m_keep_o_logic + push_data_for_fifo;
+      end else if (s_valid_i && ~s_last_i && overflow && ~s_ready_o) begin
+        counter_trn_reg <= 0;
+        m_keep_o_logic  <= 0;
+      end 
 
-
-      if (s_valid_i && s_ready_o && ~s_last_i) begin
-        if (pointer < T_DATA_RATIO - 1)
-          pointer <= pointer + 1;
-        else
-          pointer <= '0;
-      end
+      if (s_valid_i && s_ready_o && ~s_last_i && ~overflow_ptr)
+        pointer <= pointer * 2;
+      else if (overflow_ptr && s_valid_i && s_ready_o && ~s_last_i)
+        pointer <= 1;
     end
-    // if (trn_vld)  
-    //   m_keep_o_logic <= m_keep_o_logic | push_data_for_fifo;
-    // else begin
-    //   pop_data_for_fifo <= m_keep_o_logic;
-    //   m_keep_o_logic <= '0;
-    // end
 end
 
 endmodule

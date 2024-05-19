@@ -1,4 +1,4 @@
-// Asynchronous reset here is needed for one of FPGA boards we use
+
 
 module flip_flop_fifo
 # (
