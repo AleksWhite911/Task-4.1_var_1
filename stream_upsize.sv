@@ -12,10 +12,11 @@ module stream_upsize #(
   output logic [T_DATA_RATIO-1:0] m_keep_o,
   output logic                    m_last_o,
   output logic                    m_valid_o,
-  input  logic                    m_ready_i
+  input  logic                    m_ready_i,
+  output logic [T_DATA_RATIO-1:0] push_data_for_fifo // for testbench
 );
 
-logic [T_DATA_RATIO-1:0] push_data_for_fifo, fifo_full, counter_trn_reg, counter_trn, pointer, pop_data_for_fifo, fifo_empty;
+logic [T_DATA_RATIO-1:0] fifo_full, counter_trn_reg, counter_trn, pointer, pop_data_for_fifo, fifo_empty;
 logic [T_DATA_WIDTH-1:0] data_fifo [T_DATA_RATIO-1:0];
 logic [T_DATA_RATIO-1:0] m_keep_o_logic;
 logic trn_vld, push_keep, pop_keep, empty_keep, full_keep, overflow, overflow_ptr;
@@ -76,6 +77,7 @@ always_comb begin
     push_keep = 1'b1;
     s_ready_o =   '0;
     overflow =  1'b1;
+  
   end else begin
     push_keep =   '0;
     s_ready_o = 1'b1;
@@ -105,7 +107,7 @@ end
       if (s_valid_i && ~s_last_i && ~overflow && s_ready_o) begin
         counter_trn_reg <= counter_trn_reg + 1'b1;
         m_keep_o_logic  <= m_keep_o_logic + push_data_for_fifo;
-      end else if (s_valid_i && ~s_last_i && overflow && ~s_ready_o) begin
+      end else if (overflow) begin
         counter_trn_reg <= 0;
         m_keep_o_logic  <= 0;
       end 
