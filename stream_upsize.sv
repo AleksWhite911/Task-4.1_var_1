@@ -77,7 +77,10 @@ always_comb begin
     push_keep = 1'b1;
     s_ready_o =   '0;
     overflow =  1'b1;
-  
+  end else if (s_last_i && ~full_keep) begin
+    push_keep = 1'b1;
+    s_ready_o =   '0;
+    overflow =  1'b1;
   end else begin
     push_keep =   '0;
     s_ready_o = 1'b1;
@@ -91,7 +94,7 @@ always_comb begin
   //   overflow  =   '0;
   // end
 
-  if ((pointer == T_DATA_RATIO))
+  if ((pointer == T_DATA_RATIO) || s_last_i)
     overflow_ptr = 1'b1;
   else
     overflow_ptr = '0;
